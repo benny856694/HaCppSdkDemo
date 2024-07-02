@@ -98,8 +98,6 @@ int main()
     face.img_seq = 0;
 
     // 1. Open picture file
-    //std::ifstream db("d:\\mydb.db", std::ifstream::binary);
-    
     std::ifstream is("d:\\sample.jpg", std::ifstream::binary);
     
     // 2. Get length of file
