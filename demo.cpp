@@ -47,7 +47,7 @@ void HASDK_CALL HA_FaceRecoCb(
         if (info->existFaceImg)
         {
             static int i = 0;
-            cout << "face image" << endl;
+            cout << "Face image" << endl;
             cout << "\timage length: " << info->faceImgLen << endl;
             cout << "\tface img data ptr: " << std::hex << reinterpret_cast<int>(info->faceImg) << std::dec << endl;
             cout << "\tface position: x="
@@ -57,7 +57,7 @@ void HASDK_CALL HA_FaceRecoCb(
                 << ",h=" << info->faceHInFaceImg
                 << endl;
             std::stringstream faceImageName;
-            faceImageName << "faceImg" << i++ 
+            faceImageName << "FaceImg" << i++ 
                 << "(" 
                 << info->faceXInFaceImg << ","
                 << info->faceYInFaceImg << ","
@@ -74,6 +74,39 @@ void HASDK_CALL HA_FaceRecoCb(
             else
             {
                 cout << "\topen file to write error, can't save faceimg" << endl;
+            }
+        }
+
+        if (info->existImg)
+        {
+            static int i = 0;
+            cout << "Full image" << endl;
+            cout << "\timage length: " << info->imgLen << endl;
+            cout << "\timg data ptr: " << std::hex << reinterpret_cast<int>(info->img) << std::dec << endl;
+            cout << "\tface position: x="
+                << info->faceXInImg
+                << ",y=" << info->faceYInImg
+                << ",w=" << info->faceWInImg
+                << ",h=" << info->faceHInImg
+                << endl;
+            std::stringstream faceImageName;
+            faceImageName << "FullImg" << i++
+                << "("
+                << info->faceXInImg << ","
+                << info->faceYInImg << ","
+                << info->faceWInImg << ","
+                << info->faceHInImg << ","
+                << ")"
+                << ".jpg";
+            std::ofstream imgfile = ofstream(faceImageName.str(), ios_base::binary);
+            if (imgfile.is_open())
+            {
+                imgfile.write(reinterpret_cast<char*>(info->img), info->imgLen);
+                cout << "\tFull img saved" << endl;
+            }
+            else
+            {
+                cout << "\topen file to write error, can't save full img" << endl;
             }
         }
        
