@@ -151,6 +151,11 @@ void RegisterFace(HA_Cam* cam)
 
     // 1. Open picture file
     std::ifstream is("d:\\sample.jpg", std::ifstream::binary);
+    if (!is.is_open())
+    {
+        cout << "can't open image, abort registration of face" << endl;
+        return;
+    }
 
     // 2. Get length of file
     is.seekg(0, is.end);
