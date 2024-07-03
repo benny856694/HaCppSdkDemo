@@ -2,12 +2,14 @@
 #include <fstream>
 #include <vector>
 #include <iostream>
+#include <sstream>
 #include <HASdk.h>
 #include <filesystem>
+#include "demo.h"
 using namespace std;
 
 // Connection callback
-void __stdcall ConnectEventCb(struct HA_Cam* cam, const char* ip,
+void HASDK_CALL ConnectEventCb(struct HA_Cam* cam, const char* ip,
     unsigned short port, int event, void* usrParam)
 {
     if (event == 1)
@@ -18,7 +20,7 @@ void __stdcall ConnectEventCb(struct HA_Cam* cam, const char* ip,
 // Defines a connection event callback function that will be triggered when the camera is disconnected or reconnected due to unexpected events
 
 // QR code callback
-void __stdcall HA_QRCodeCb(
+void HASDK_CALL HA_QRCodeCb(
     struct HA_Cam* cam,
     unsigned char* code,
     void* resv,
@@ -28,21 +30,63 @@ void __stdcall HA_QRCodeCb(
 }
 
 // Capture record callback
-void __stdcall HA_FaceRecoCb(
+void HASDK_CALL HA_FaceRecoCb(
     struct HA_Cam* cam,
-    const struct FaceRecoInfo* faceRecoInfo,
+    const struct FaceRecoInfo* info,
     void* usrParam
     ) 
 {
+    cout << endl << endl;
     cout << "Received capture data..." << endl;
-    cout << "person id:" << faceRecoInfo->matchPersonId << endl;
-    cout << "person name:" << faceRecoInfo->matchPersonName << endl;
-    cout << "person nameEx:" << faceRecoInfo->matchPersonNameEx << endl;
+    if (info->matched > 0)
+    {
+        cout << "successful match" << endl;
+        cout << "person id:" << info->matchPersonId << endl;
+        cout << "person name:" << info->matchPersonName << endl;
+        cout << "person nameEx:" << info->matchPersonNameEx << endl;
+        if (info->existFaceImg)
+        {
+            static int i = 0;
+            cout << "face image" << endl;
+            cout << "\timage length: " << info->faceImgLen << endl;
+            cout << "\tface img data ptr: " << std::hex << reinterpret_cast<int>(info->faceImg) << std::dec << endl;
+            cout << "\tface position: x="
+                << info->faceXInFaceImg
+                << ",y=" << info->faceYInFaceImg
+                << ",w=" << info->faceWInFaceImg
+                << ",h=" << info->faceHInFaceImg
+                << endl;
+            std::stringstream faceImageName;
+            faceImageName << "faceImg" << i++ 
+                << "(" 
+                << info->faceXInFaceImg << ","
+                << info->faceYInFaceImg << ","
+                << info->faceWInFaceImg << ","
+                << info->faceHInFaceImg << ","
+                << ")"
+                << ".jpg";
+            std::ofstream imgfile = ofstream(faceImageName.str(), ios_base::binary);
+            if (imgfile.is_open())
+            {
+                imgfile.write(reinterpret_cast<char*>(info->faceImg), info->faceImgLen);
+                cout << "\tface img saved" << endl;
+            }
+            else
+            {
+                cout << "\topen file to write error, can't save faceimg" << endl;
+            }
+        }
+       
+    }
+    else
+    {
+        cout << "failed match" << endl;
+    }
 }
 
 // Wiegand input callback, type=18 represents door sensor signal
 // typedef void (HASDK_CALL *HA_WGInputCb_t)(struct HA_Cam* cam, int type, unsigned long long data, void* usrParam);
-void __stdcall HA_WGInputCb(
+void HASDK_CALL HA_WGInputCb(
     struct HA_Cam* cam,
     int type,
     unsigned long long data,
@@ -51,45 +95,20 @@ void __stdcall HA_WGInputCb(
 }
 
 // Query personnel callback
-void __stdcall faceQueryCb_t(struct HA_Cam* cam, const struct QueryFaceInfo* faceQueryInfo, void* usrParam) {
+void HASDK_CALL faceQueryCb_t(struct HA_Cam* cam, const struct QueryFaceInfo* faceQueryInfo, void* usrParam) {
     // record_no=0 means the query is finished
     printf("record_count=%d record_no=%d personID=%s version=%d\n", faceQueryInfo->record_count, faceQueryInfo->record_no, faceQueryInfo->personID, faceQueryInfo->version);
 }
 
 // JSON callback
-void __stdcall HA_UIJsonTransferCb(struct HA_Cam* cam, const char* json_str, void* usrParam) {
+void HASDK_CALL HA_UIJsonTransferCb(struct HA_Cam* cam, const char* json_str, void* usrParam) {
     // {"cmd": "data download", "data_type": "3", "data_size": "7k"}
     // {"attributeOfReg": 1, "camId": "", "cmd": "ShowRecord", "dev_id": "F2E786-A7321E-0000FF", "faceJpg...
     printf("Received JSON -> %s\n", json_str);
 }
 
-int main()
+void RegisterFace(HA_Cam* cam)
 {
-    system("chcp 65001");
-    HA_Init(); // SDK initialization, only need to initialize once during the whole program runtime
-    //HA_InitFaceModel(nullptr); // Face extractor initialization, the model folder is in the SDK zip package
-    HA_SetNotifyConnected(1); // Enable connection event callback function
-    HA_RegConnectEventCb(ConnectEventCb, 0); // Register global connection event callback function
-
-    const char* p_ip = "192.168.0.157"; // Camera IP address
-    int port = 9527; // Port fixed at 9527
-    int erroNum = 0; /* Error code: Note that in older camera versions, the error code may allow connection success. It is recommended to use HA_Connected to check the camera connection status */
-    HA_Cam* cam = HA_Connect(p_ip, port, NULL, NULL, &erroNum); // Connect to camera
-
-    if (HA_Connected(cam)) { // Check camera connection status
-        printf("Camera connected successfully\n");
-        HA_RegFaceRecoCb(cam, HA_FaceRecoCb, 0); // Capture callback
-        HA_RegQRCodeCb(cam, HA_QRCodeCb, 0); // QR code callback
-        HA_RegWGInputCb(cam, HA_WGInputCb, 0); // Wiegand callback
-        HA_UIJsonTransferCb(cam, HA_UIJsonTransferCb, 0); // JSON callback
-    }
-    else {
-        printf("Camera connection failed\n");
-    }
-
-    // Additional SDK interface calls
-    // Register face with original image
-#if true
     FaceFlags faceID = { 0 }; // Register personnel information
     FaceImage face; // Face image information
     face.img_fmt = 1; // JPG format
@@ -99,7 +118,7 @@ int main()
 
     // 1. Open picture file
     std::ifstream is("d:\\sample.jpg", std::ifstream::binary);
-    
+
     // 2. Get length of file
     is.seekg(0, is.end);
     int length = is.tellg();
@@ -128,6 +147,45 @@ int main()
     int a = HA_AddFacesByJpg(cam, &faceID, &face, 1);
     std::cout << "Face registration return: " << a << endl;
     delete[] buffer;
+}
+
+int main(int argc, char* argv[])
+{
+    if (argc < 1)
+    {
+        cout << "you must input an ip of the device" << endl;
+        return 0;
+    }
+
+    cout << "device ip: " << argv[1] << endl;
+#ifdef WINDOWS
+    system("chcp 65001");
+#endif
+    HA_Init(); // SDK initialization, only need to initialize once during the whole program runtime
+    //HA_InitFaceModel(nullptr); // Face extractor initialization, the model folder is in the SDK zip package
+    HA_SetNotifyConnected(1); // Enable connection event callback function
+    HA_RegConnectEventCb(ConnectEventCb, 0); // Register global connection event callback function
+
+    const char* p_ip = argv[1]; // Camera IP address
+    int port = 9527; // Port fixed at 9527
+    int erroNum = 0; /* Error code: Note that in older camera versions, the error code may allow connection success. It is recommended to use HA_Connected to check the camera connection status */
+    HA_Cam* cam = HA_Connect(p_ip, port, NULL, NULL, &erroNum); // Connect to camera
+
+    if (HA_Connected(cam)) { // Check camera connection status
+        printf("Camera connected successfully\n");
+        HA_RegFaceRecoCb(cam, HA_FaceRecoCb, 0); // Capture callback
+        HA_RegQRCodeCb(cam, HA_QRCodeCb, 0); // QR code callback
+        HA_RegWGInputCb(cam, HA_WGInputCb, 0); // Wiegand callback
+        //HA_UIJsonTransferCb(cam, HA_UIJsonTransferCb, 0); // JSON callback
+    }
+    else {
+        printf("Camera connection failed\n");
+    }
+
+    // Additional SDK interface calls
+    // Register face with original image
+#if true
+    RegisterFace(cam);
 #endif
 
     // Face image verification

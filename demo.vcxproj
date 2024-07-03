@@ -148,6 +148,7 @@
     <ClCompile Include="demo.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="demo.h" />
     <ClInclude Include="include\x86\config_gw.h" />
     <ClInclude Include="include\x86\discover_client.h" />
     <ClInclude Include="include\x86\discover_def.h" />

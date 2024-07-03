@@ -44,6 +44,9 @@
     <ClInclude Include="include\x86\network_msg.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="demo.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="C:\Users\shenb\Pictures\sample.jpg">
