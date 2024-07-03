@@ -8,6 +8,49 @@
 #include "demo.h"
 using namespace std;
 
+
+bool ReadAllBytes(const string& fullPath, byte* &pBuffer, int& length)
+{
+    std::ifstream is(fullPath, std::ifstream::binary);
+    if (!is.is_open())
+    {
+        return false;
+    }
+
+    // 2. Get length of file
+    is.seekg(0, is.end);
+    length = is.tellg();
+    is.seekg(0, is.beg);
+    // 3. Create buffer
+    pBuffer = new byte[length];
+    // 4. Read data as a block
+    is.read(reinterpret_cast<char*>(pBuffer), length);
+    
+    return !is.fail();
+}
+
+bool WriteBytesToFile(const std::string& filename, const byte* data, size_t len) {
+    // Open the file in binary write mode
+    std::ofstream file(filename, std::ios::binary);
+
+    // Check if the file was opened successfully
+    if (!file.is_open()) {
+        std::cerr << "Error opening file: " << filename << std::endl;
+        return false;
+    }
+
+    // Write the data to the file
+    file.write((const char*)data, len);
+
+    // Check for errors during writing
+    if (file.fail()) {
+        std::cerr << "Error writing to file: " << filename << std::endl;
+        return false;
+    }
+
+    return true; // Success
+}
+
 // Connection callback
 void HASDK_CALL ConnectEventCb(struct HA_Cam* cam, const char* ip,
     unsigned short port, int event, void* usrParam)
@@ -65,16 +108,7 @@ void HASDK_CALL HA_FaceRecoCb(
                 << info->faceHInFaceImg << ","
                 << ")"
                 << ".jpg";
-            std::ofstream imgfile = ofstream(faceImageName.str(), ios_base::binary);
-            if (imgfile.is_open())
-            {
-                imgfile.write(reinterpret_cast<char*>(info->faceImg), info->faceImgLen);
-                cout << "\tface img saved" << endl;
-            }
-            else
-            {
-                cout << "\topen file to write error, can't save faceimg" << endl;
-            }
+            WriteBytesToFile(faceImageName.str(), info->faceImg, info->faceImgLen);
         }
 
         if (info->existImg)
@@ -98,16 +132,7 @@ void HASDK_CALL HA_FaceRecoCb(
                 << info->faceHInImg << ","
                 << ")"
                 << ".jpg";
-            std::ofstream imgfile = ofstream(faceImageName.str(), ios_base::binary);
-            if (imgfile.is_open())
-            {
-                imgfile.write(reinterpret_cast<char*>(info->img), info->imgLen);
-                cout << "\tFull img saved" << endl;
-            }
-            else
-            {
-                cout << "\topen file to write error, can't save full img" << endl;
-            }
+            WriteBytesToFile(faceImageName.str(), info->img, info->imgLen);
         }
        
     }
@@ -150,29 +175,16 @@ void RegisterFace(HA_Cam* cam)
     face.img_seq = 0;
 
     // 1. Open picture file
-    std::ifstream is("d:\\sample.jpg", std::ifstream::binary);
-    if (!is.is_open())
+    byte* pBuffer = nullptr;
+    int len = 0;
+    bool suc = ReadAllBytes("d:\\sample.jpg", pBuffer, len);
+    if (!suc)
     {
-        cout << "can't open image, abort registration of face" << endl;
+        cout << "read file error, fail to register face image" << endl;
         return;
     }
-
-    // 2. Get length of file
-    is.seekg(0, is.end);
-    int length = is.tellg();
-    is.seekg(0, is.beg);
-    // 3. Create buffer
-    char* buffer = new char[length];
-    std::cout << "Reading " << length << " bits... \n";
-    // 4. Read data as a block
-    is.read(buffer, length);
-    if (is)
-        std::cout << "Picture read successfully." << endl;
-    else
-        std::cout << "Error: only " << is.gcount() << " could be read";
-    is.close();
-    face.img_len = length;
-    face.img = (unsigned char*)buffer;
+    face.img_len = len;
+    face.img = (byte*)pBuffer;
 
     faceID.effectTime = 0xFFFFFFFF; // Authorization end time (permanently valid)
     faceID.effectStartTime = 0; // Authorization start time
@@ -184,8 +196,30 @@ void RegisterFace(HA_Cam* cam)
     faceID.ScheduleMode = 0;
     int a = HA_AddFacesByJpg(cam, &faceID, &face, 1);
     std::cout << "Face registration return: " << a << endl;
-    delete[] buffer;
+    delete[] pBuffer;
 }
+
+
+void ExtractFaceImage(const string& fullImagePath)
+{
+    int feature_size = 256 * 1024;
+    byte* feature_image = new byte[feature_size];
+    int imgLen = 0;
+    byte* pBuffer = nullptr;
+    int faceJpgLen = 128 * 1024;
+    byte* faceImgJpg = new byte[faceJpgLen];
+    bool suc = ReadAllBytes(fullImagePath, pBuffer, imgLen);
+    if (!suc)
+    {
+        cout << "can't read file" << endl;
+        return;
+    }
+    int ret = HA_GetJpgFeatureImageNew(pBuffer, faceJpgLen, feature_image, &feature_size, faceImgJpg, &faceJpgLen, NULL);
+    delete[] feature_image;
+    delete[] faceImgJpg;
+    delete[] pBuffer;
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -200,7 +234,7 @@ int main(int argc, char* argv[])
     system("chcp 65001");
 #endif
     HA_Init(); // SDK initialization, only need to initialize once during the whole program runtime
-    //HA_InitFaceModel(nullptr); // Face extractor initialization, the model folder is in the SDK zip package
+    HA_InitFaceModel("d:\\model"); // Face extractor initialization, the model folder is in the SDK zip package
     HA_SetNotifyConnected(1); // Enable connection event callback function
     HA_RegConnectEventCb(ConnectEventCb, 0); // Register global connection event callback function
 
