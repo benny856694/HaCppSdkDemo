@@ -214,12 +214,18 @@ void ExtractFaceImage(const string& fullImagePath)
         cout << "can't read file" << endl;
         return;
     }
-    int ret = HA_GetJpgFeatureImageNew(pBuffer, imgLen, feature_image, &feature_size, faceImgJpg, &faceJpgLen, NULL);
+    int twistImgLen = 70 * 1024;
+    byte* twistimg = new byte[ twistImgLen];
+    int twistwidth = 0;
+    int twistheight = 0;
+
+    int ret = HA_GetJpgFeatureImage(pBuffer, imgLen, twistimg, &twistImgLen, &twistwidth, &twistheight, faceImgJpg, &faceJpgLen);
     if (!ret)
     {
         cout << "face extract succeed" << endl;
         WriteBytesToFile("feature.jpg", feature_image, feature_size);
         WriteBytesToFile("face.jpg", faceImgJpg, faceJpgLen);
+        WriteBytesToFile("twist.jpg", twistimg, twistImgLen);
     }
     delete[] feature_image;
     delete[] faceImgJpg;
