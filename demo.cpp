@@ -214,7 +214,13 @@ void ExtractFaceImage(const string& fullImagePath)
         cout << "can't read file" << endl;
         return;
     }
-    int ret = HA_GetJpgFeatureImageNew(pBuffer, faceJpgLen, feature_image, &feature_size, faceImgJpg, &faceJpgLen, NULL);
+    int ret = HA_GetJpgFeatureImageNew(pBuffer, imgLen, feature_image, &feature_size, faceImgJpg, &faceJpgLen, NULL);
+    if (!ret)
+    {
+        cout << "face extract succeed" << endl;
+        WriteBytesToFile("feature.jpg", feature_image, feature_size);
+        WriteBytesToFile("face.jpg", faceImgJpg, faceJpgLen);
+    }
     delete[] feature_image;
     delete[] faceImgJpg;
     delete[] pBuffer;
@@ -253,6 +259,10 @@ int main(int argc, char* argv[])
     else {
         printf("Camera connection failed\n");
     }
+
+    //extract face image
+    cout << "extract face" << endl;
+    ExtractFaceImage("d:\\sample.jpg");
 
     // Additional SDK interface calls
     // Register face with original image
